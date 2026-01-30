@@ -21,11 +21,12 @@ type Command struct {
 	exitCode    int
 }
 
-func NewCommand(ctx context.Context, args []string) *Command {
+func NewCommand(ctx context.Context, args []string, restartArgs []string) *Command {
 	return &Command{
-		Args: args,
-		Pid:  -1,
-		ctx:  ctx,
+		Args:        args,
+		RestartArgs: restartArgs,
+		Pid:         -1,
+		ctx:         ctx,
 	}
 }
 

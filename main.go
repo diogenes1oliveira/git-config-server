@@ -12,6 +12,7 @@ import (
 
 	"github.com/jessevdk/go-flags"
 	"github.com/joho/godotenv"
+	shellquote "github.com/kballard/go-shellquote"
 )
 
 var Options struct {
@@ -23,6 +24,7 @@ var Options struct {
 	Password           string `long:"password" description:"Git password" env:"GIT_PASSWORD"`
 	UpdatePeriod       int    `long:"update-period" default:"60" description:"Update period in seconds" env:"GIT_UPDATE_PERIOD"`
 	PreUpdateCommand   string `long:"pre-update-command" default:"true" description:"Shell command to run before restarting the application after an update. The working directory will be set to the local repo folder" env:"PRE_UPDATE_COMMAND"`
+	RestartCommand     string `long:"restart-command" default:"true" description:"Shell command to run before restarting the application after an update. The working directory will be set to the local repo folder" env:"RESTART_COMMAND"`
 	PreUpdateRunner    string `long:"pre-update-runner" default:"bash" description:"Shell to run the pre-update command" env:"PRE_UPDATE_RUNNER"`
 	WebhookPort        int    `long:"webhook-port" default:"0" description:"Port to bind the webhook server to" env:"WEBHOOK_PORT"`
 	WebhookTokenValue  string `long:"webhook-token-value" default:"" description:"Token value to authenticate requests" env:"WEBHOOK_TOKEN_VALUE"`
@@ -65,7 +67,14 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	command := NewCommand(ctx, args)
+	var restartArgs []string
+	if len(Options.RestartCommand) > 0 {
+		restartArgs, err = shellquote.Split(Options.RestartCommand)
+		if err != nil {
+			log.Fatalf("failed to parse restart command: %v\n", err)
+		}
+	}
+	command := NewCommand(ctx, args, restartArgs)
 	gitRepo := NewGitRepo(Options.RepoUrl, Options.RepoBranch, Options.RepoFolder, Options.Username, Options.Password)
 
 	updateCh := make(chan struct{}, 5)
