@@ -19,3 +19,15 @@
 
 # Go workspace file
 go.work
+
+# Env files
+*.env
+*.envrc
+*.autoenv.zsh
+
+# Temporary files
+/var
+/tmp
+
+# Build result
+/git-config-server
