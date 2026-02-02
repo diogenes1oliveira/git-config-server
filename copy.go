@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"io"
-	"io/fs"
 	"os"
 	"path/filepath"
 )
@@ -55,7 +54,11 @@ func SyncDirs(src, dst string) error {
 			if err != nil {
 				return fmt.Errorf("failed to create dst dir %s: %w", dstPath, err)
 			}
-		} else if err := copyFile(path, dstPath, info.Mode().Perm()); err != nil {
+			return nil
+		}
+		mode := info.Mode().Perm()
+		userExecutableBit := mode & 0100
+		if err := copyFile(path, dstPath, userExecutableBit == 0); err != nil {
 			return fmt.Errorf("failed to copy source dir %s to %s: %w", path, dstPath, err)
 		}
 		return nil
@@ -64,32 +67,43 @@ func SyncDirs(src, dst string) error {
 }
 
 // copyFile copies a file from src to dst
-func copyFile(src, dst string, mode fs.FileMode) error {
+func copyFile(src, dst string, setExecutableBit bool) error {
 	srcFile, err := os.Open(src)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to open source file at %s: %w", srcFile, err)
 	}
 	defer srcFile.Close()
 
 	dstFile, err := os.Create(dst)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to create dest file at %s: %w", dstFile, err)
 	}
 	defer dstFile.Close()
 
 	_, err = io.Copy(dstFile, srcFile)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to copy source file %s to dest file at %s: %w", srcFile, dstFile, err)
 	}
 	if err := dstFile.Close(); err != nil {
-		return err
+		return fmt.Errorf("failed to close dest file at %s: %w", dstFile, err)
 	}
-
-	if mode != 0 {
-		return os.Chmod(dst, mode)
-	} else {
+	if !setExecutableBit {
 		return nil
 	}
+
+	// Get current permissions and add user executable bit (like chmod u+x)
+	info, err := os.Stat(dst)
+	if err != nil {
+		return fmt.Errorf("failed to stat dest file at %s: %w", dst, err)
+	}
+	currentMode := info.Mode().Perm()
+	newMode := currentMode | 0100 // Add user executable bit
+
+	if err := os.Chmod(dst, newMode); err != nil {
+		return fmt.Errorf("failed to chmod dest file at %s: %w", dst, err)
+	}
+
+	return nil
 }
 
 func IsExecAny(info os.FileInfo) bool {
