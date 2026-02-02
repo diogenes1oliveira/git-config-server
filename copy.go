@@ -58,7 +58,7 @@ func SyncDirs(src, dst string) error {
 		}
 		mode := info.Mode().Perm()
 		userExecutableBit := mode & 0100
-		if err := copyFile(path, dstPath, userExecutableBit == 0); err != nil {
+		if err := copyFile(path, dstPath, userExecutableBit != 0); err != nil {
 			return fmt.Errorf("failed to copy source dir %s to %s: %w", path, dstPath, err)
 		}
 		return nil
@@ -97,8 +97,11 @@ func copyFile(src, dst string, setExecutableBit bool) error {
 		return fmt.Errorf("failed to stat dest file at %s: %w", dst, err)
 	}
 	currentMode := info.Mode().Perm()
+	currentExecutableBit := currentMode & 0100
+	if currentExecutableBit != 0 {
+		return nil
+	}
 	newMode := currentMode | 0100 // Add user executable bit
-
 	if err := os.Chmod(dst, newMode); err != nil {
 		return fmt.Errorf("failed to chmod dest file at %s: %w", dst, err)
 	}

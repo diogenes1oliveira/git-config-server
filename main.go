@@ -24,7 +24,7 @@ var Options struct {
 	Password           string `long:"password" description:"Git password" env:"GIT_PASSWORD"`
 	UpdatePeriod       int    `long:"update-period" default:"60" description:"Update period in seconds" env:"GIT_UPDATE_PERIOD"`
 	PreUpdateCommand   string `long:"pre-update-command" default:"true" description:"Shell command to run before restarting the application after an update. The working directory will be set to the local repo folder" env:"PRE_UPDATE_COMMAND"`
-	RestartCommand     string `long:"restart-command" default:"true" description:"Shell command to run before restarting the application after an update. The working directory will be set to the local repo folder" env:"RESTART_COMMAND"`
+	RestartCommand     string `long:"restart-command" default:"" description:"Shell command to run instead of stopping and starting the application after an update. If empty, will stop and start the application." env:"RESTART_COMMAND"`
 	PreUpdateRunner    string `long:"pre-update-runner" default:"bash" description:"Shell to run the pre-update command" env:"PRE_UPDATE_RUNNER"`
 	WebhookPort        int    `long:"webhook-port" default:"0" description:"Port to bind the webhook server to" env:"WEBHOOK_PORT"`
 	WebhookTokenValue  string `long:"webhook-token-value" default:"" description:"Token value to authenticate requests" env:"WEBHOOK_TOKEN_VALUE"`

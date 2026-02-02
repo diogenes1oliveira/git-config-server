@@ -106,7 +106,7 @@ func (c *Command) Stop() error {
 }
 
 func (c *Command) Restart() error {
-	if c.RestartArgs != nil {
+	if len(c.RestartArgs) > 0 {
 		log.Printf("executing restart command\n")
 		cmd := exec.Command(c.RestartArgs[0], c.RestartArgs[1:]...)
 		cmd.Stdout = os.Stdout
