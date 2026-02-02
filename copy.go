@@ -1,20 +1,28 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
+
+	"github.com/go-git/go-git/v5/plumbing/format/gitignore"
 )
 
 // SyncDirs recursively synchronizes two directories.
 //
 // First, delete all items in the destination that don't match the source: either they don't
 // exist in the source, or are files in the destination and directories in the source or vice-versa.
+// However, items that are .gitignored in the source are preserved in the destination.
 //
 // Then copy all files, overwriting. Then, create all directories in the source and recursively
 // sync them too
 func SyncDirs(src, dst string) error {
+	// Load .gitignore patterns from source
+	gitignoreMatcher := loadGitignorePatterns(src)
+
 	// Delete items in the destination that don't match the source
 	err := filepath.Walk(dst, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
@@ -24,6 +32,18 @@ func SyncDirs(src, dst string) error {
 		if err != nil {
 			return fmt.Errorf("failed to relativize path %s inside %s: %w", dst, path, err)
 		}
+
+		// Check if this path is gitignored
+		// Convert to forward slashes for gitignore matching
+		gitignorePath := filepath.ToSlash(relPath)
+		if gitignoreMatcher.Match(strings.Split(gitignorePath, "/"), info.IsDir()) {
+			// This file/directory is gitignored, so preserve it in destination
+			if info.IsDir() {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+
 		srcPath := filepath.Join(src, relPath)
 		srcInfo, err := os.Stat(srcPath)
 
@@ -111,4 +131,30 @@ func copyFile(src, dst string, setExecutableBit bool) error {
 
 func IsExecAny(info os.FileInfo) bool {
 	return info.Mode().Perm()&0111 != 0
+}
+
+// loadGitignorePatterns loads .gitignore patterns from the source directory
+func loadGitignorePatterns(src string) gitignore.Matcher {
+	var patterns []gitignore.Pattern
+	var domain []string
+
+	gitignorePath := filepath.Join(src, ".gitignore")
+	file, err := os.Open(gitignorePath)
+	if err != nil {
+		// .gitignore doesn't exist or can't be read, return empty matcher
+		return gitignore.NewMatcher(patterns)
+	}
+	defer file.Close()
+
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		// Skip empty lines and comments
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		patterns = append(patterns, gitignore.ParsePattern(line, domain))
+	}
+
+	return gitignore.NewMatcher(patterns)
 }
